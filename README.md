@@ -1,5 +1,8 @@
-The official code repository for the EMNLP 2022 findings paper "Do Text-to-Text Learners Suffer From Multi-Task Conflict?"
+The official code repository for the EMNLP 2022 findings paper:
 
+## "Do Text-to-Text Learners Suffer From Multi-Task Conflict?"
+
+Note: The code has been refactored, but not debugged. I will remove this note when I have tested and debugged the refactor.
 
 ## Synopsis
 
