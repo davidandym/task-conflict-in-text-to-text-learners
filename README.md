@@ -1,20 +1,25 @@
-The official code Repository for the EMNLP 2022 Findings Paper "Do Text-to-Text Learners Suffer From Multi-Task Conflict?"
+The official code repository for the EMNLP 2022 findings paper "Do Text-to-Text Learners Suffer From Multi-Task Conflict?"
 
 
 ## Synopsis
 
-This project explores whether or not
-reframing multi-task learning as a text-to-text problem
-has a significant effect on observed negative transfer
-and task conflict.
+The purpose of this paper was to explore how **reframing** multi-task learning (MTL) as a text-to-text problem can affect classic notions of transfer and task conflict. Traditionally, multi-task learning considers a set of tasks who share an input space (say, all images of size $128\times128$) but have (potentially) distinct output spaces. Thus, the **canonical** multi-task model considers a _shared encoder_ which encodes all inputs into a shared representation space, followed by a _task-specific decoder_ which uses the shared representation to make a task-specific prediction.
+In this setting, we **specify** the task that we want to predict by selecting which task decoder will be used to make a prediction.
 
-Multi-task learning is oftentimes synonymous with **negative transfer**, a term that describes when a system trained on multiple tasks underperforms a system trained on only a single task.
-Negative transfer is often associated with **task conflict**: significant differences between task gradients (both in their directions and magnitudes), which leads optimization to favor certain tasks over others, and can result in.
+Recently in NLP, a different paradigm of multi-task learning has emerged: **text-to-text** multi-task learning considers a set of tasks who have a shared input space (all natural language sequences) and a _shared output space_ (all natural language sequences).
+In this setting, the model considered is a _fully unified text-to-text_ model, with no task-specific parameters;
+to specify which task we want the model to predict, we train the model to recognize **task prompts** which are prepended to task examples during training to ensure the model recognizes which tasks it is predicting into.
 
-The code to measure conflict can be found in
-`src/conflict_measurements.py`.
+Text-to-text multi-task learners have exploded in popularity due to their impressive _zero-shot_ capabilities (their ability to generalize to unseen tasks and instructions), a form of generalization that does not typically arise in canonical multi-task learning.
+Nevertheless, it may be desirable for our text-to-text models to be strong _multi-task generalizers_; that is, to generalize well to the tasks that they have been trained on.
+Multi-task generalization has, traditionally, been a difficult problem: while training on diverse data may result in a better "meta-learner", this often comes at the cost of worse performance on the seen tasks, known as **negative transfer**.
+Prior work has correlated negative transfer with **task conflict**, or significant differences between task gradients that prevents effective minimization of one or more task objectives.
 
-Most of this code is a (hopefully) fairly straight-forward training harness for multi-task (and single-task) models across 2 standard benchmarks: DecaNLP and GLUE.
+Despite their popularity, the effect of text-to-text learning on negative transfer and task conflict has not been studied before.
+If text-to-text learners _also_ suffer from task conflict and negative transfer, it follows that text-to-text learners may benefit from sophisticated multi-task optimization strategies.
+To that end, we explore how different factors that emerge as we shift from canonical MTL to text-to-text MTL may affect multi-task transfer and task conflict.
+
+Most of this code is a (hopefully) fairly straight-forward training harness for multi-task (and single-task) training (using T5 as the backbone for all models) across 2 English NLP benchmarks (DecaNLP and GLUE).
 
 ## Running Experiments
 
