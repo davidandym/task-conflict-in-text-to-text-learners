@@ -18,6 +18,8 @@ class Dataset():
         # Saves important parameters and loads datasets.
         # This function can take some time to run, since it tokenizes the entire dataset.
     
+        self.tokenizer_type = args.pretrained_model
+        
         self.prompt_style = args.prompt_style
         self.label_style = args.label_style
         self.canonical = args.canonical
@@ -117,5 +119,11 @@ class Dataset():
         if self.max_seq_len != args.max_seq_len:
             consistency = False
             failures.append('max seq len')
+
+
+        # Check max sequence length consistency.
+        if self.tokenizer_type != args.pretrained_model:
+            consistency = False
+            failures.append('pretrained tokenizer')
 
         return (consistency, failures)

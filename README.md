@@ -31,14 +31,9 @@ The entry point for any experiment script is `src/train.py`.
 By default, models are not saved.
 Instead, the results of each experiment are saved in two files: `{args.log_dir}/train_log.csv` and `{args.log_dir}/evaluation.json`.
 `train_log.csv` will contain a csv of information from the entire training run. This is where you will find training loss curves, as well as measurements of task conflict.
+`evaluation.json` will contain the final model performance on test and validation sets for all the tasks being considered.
 
 To run the experiments from the paper, see `scripts/main_experiments/`.
-
-The only other files that can be executed are the dataset files (`src/data/{benchmark}_dataset.py`).
-The main function of these files will take a subset of the arguments from the main train script, construct the appropriate dataset, and then
-cache it as a `.torch` object.
-I would recommend doing this, generally, because parsing and tokenizing all of these tasks can take some time.
-Moreover, you can reuse a multi-task dataset (a dataset constructed with `all-tasks`) for single-task experiments.
 
 ## Measuring Conflict
 
@@ -57,6 +52,9 @@ The returned measurements of directional and magnitude conflict are used in the 
 The data used for these experiments is open source, and should be freely available.
 For GLUE experiments, I used the huggingface `datasets` package to download (and format) all data.
 For DecaNLP experiments, I followed the downloading and formatting procedures put forth by the original DecaNLP repo (https://github.com/salesforce/decaNLP).
+
+Datasets can be pre-loaded and cached with `src/data/cache_dataset.py`. For a given set of dataset-specifying arguments, this script will construct a dataset object and pre-process / tokenize all the data.
+The resulting object, which is stored as a `.torch` object, can be loaded by setting `--precached_dataset_path` (in `train.py`) to point to it; doing so can save a decent chunk of time spent running the main experiment, especially if you are running multiple experiments over a single setting (dataset configuration).
 
 ## Evaluation
 
@@ -85,19 +83,12 @@ If you use this code, please cite: (The proper Bibtex should be forthcoming...)
 ```
 @misc{https://doi.org/10.48550/arxiv.2212.06645,
   doi = {10.48550/ARXIV.2212.06645},
-  
   url = {https://arxiv.org/abs/2212.06645},
-  
   author = {Mueller, David and Andrews, Nicholas and Dredze, Mark},
-  
   keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  
   title = {Do Text-to-Text Multi-Task Learners Suffer from Task Conflict?},
-  
   publisher = {arXiv},
-  
   year = {2022},
-  
   copyright = {Creative Commons Attribution 4.0 International}
 }
 ```
