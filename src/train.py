@@ -16,7 +16,7 @@ import torch
 from transformers import AutoConfig, T5Tokenizer
 from transformers import AdamW, get_scheduler
 
-from datasets import DATASET
+from data import DATASET_MAP
 from models import CanonicalT5, Text2TextT5, Text2TextIndependentHeadsT5
 from utils import set_seed
 from evaluate import evaluate
@@ -33,6 +33,8 @@ def get_args():
                    help="output directory")
     p.add_argument("--cached_dataset_path", default="/exp/dmueller/data/glue/.cached_t5_project_dataset.torch",
                    help="location of pre-trained dataset")
+    p.add_argument("--raw_data_dir", default="", type=None,
+                   help="Location of raw datafiles. (Can be left None for GLUE to use default huggingface cache directory) or if loading cached dataset.")
     p.add_argument("--log_every", default=100, type=int,
                    help="Num of steps between logging of training.")
 
@@ -49,7 +51,7 @@ def get_args():
                     help="set if using independent heads with a text-to-text model.")
     p.add_argument("--reset_decoder_weights", action="store_true",
                    help="Reset the weights of the T5 Decoder for text-to-text models.")
-    p.add_argument('--prompted_style', default='canonical', type=str,
+    p.add_argument('--prompt_style', default='canonical', type=str,
                     help="The style of prompts to use for the model. Applies to canonical & text-to-text experiments.")
     p.add_argument('--label_style', default='default', type=str,
                     help="The style of label to use for the model. Only applies to text-to-text experiments.")
@@ -58,6 +60,8 @@ def get_args():
     # T5
     p.add_argument("--pretrained_model", default="google/t5-v1_1-small",
                    help="pre-trained T5 model type")
+    p.add_argument("--max_seq_len", default=256, type=int,
+                   help="Maximimum input sequence length.")
 
     # Validation Settings
     p.add_argument("--val_every", default=500, type=int,
@@ -135,7 +139,7 @@ def initialize_csv_logger(args, dataset):
         train_log_fields += [f'{task} dev total samples']
         train_log_fields += [f'{task} dev loss']
         train_log_fields += [f'{task} dev bad outputs']
-    train_log_fields += get_conflict_metric_keys(args.train_tasks)
+    train_log_fields += get_conflict_metric_keys(args.train_tasks, args)
 
     train_log_file = open(os.path.join(args.log_dir, 'train_logs.csv'), 'w', newline='')
     train_logger = csv.DictWriter(
@@ -209,7 +213,7 @@ def train(args, device,
 
             batch = dataset.sample_train_batch(task, args.train_batch_size)
             batch = tuple(t.to(device) for t in batch)
-            inputs = dataset.batch_to_inputs(batch, task, args.canonical, args.prompted_inputs)
+            inputs = dataset.batch_to_inputs(batch, task)
 
             out = model(task, tokenizer, **inputs)
 
@@ -360,7 +364,7 @@ def main():
     # Clean up args.
     args.benchmark = args.benchmark.lower()
     if args.train_tasks == ['all-tasks']:
-        args.train_tasks = DATASET[args.benchmark].all_tasks
+        args.train_tasks = DATASET_MAP[args.benchmark].all_tasks
 
     # Initialize seed and args.
     device = set_seed(args)
@@ -371,11 +375,13 @@ def main():
     tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model)
 
     # Because dataset loading takes so long, I recommend cacheing it first.
-    # dataset = DATASET[args.benchmark](args)
-    dataset = torch.load(args.cached_dataset_path)
-    consistent, failures = dataset.check_consistency(args)
-    if not consistent:
-        raise Exception(f"The loaded dataset is not consistent with the following args: {' '.join(failures)}")
+    if args.cached_dataset_path != "":
+        dataset = DATASET_MAP[args.benchmark](args, tokenizer)
+    else:
+        dataset = torch.load(args.cached_dataset_path)
+        consistent, failures = dataset.check_consistency(args)
+        if not consistent:
+            raise Exception(f"The loaded dataset is not consistent with the following args: {' '.join(failures)}")
 
     # Load huggingface T5 Config
     config = AutoConfig.from_pretrained(args.pretrained_model)
@@ -383,7 +389,7 @@ def main():
     config.update({"dropout_rate": args.dropout_rate})
 
     # Load model architecture.
-    model = init_model(args, device)
+    model = init_model(args, config, device)
 
     # Run experiment.
     run(args, device, model, dataset, tokenizer)

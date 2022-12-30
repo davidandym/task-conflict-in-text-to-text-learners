@@ -4,7 +4,8 @@ python src/train.py \
     --seed 1234 \
     --canonical \
     --prompt_style "canonical" \
-    --log_dir "test/experiment/directory" \
+    --raw_data_dir "/exp/dmueller/data/glue" \
+    --log_dir "/exp/dmueller/task-specification/camera-ready-tests/canonical-glue-test" \
     --benchmark "glue" \
     --train_tasks "all-tasks" \
     --log_every 25 \

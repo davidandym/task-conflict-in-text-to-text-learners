@@ -15,7 +15,7 @@ import torch
 from torch.utils.data import TensorDataset
 from transformers import PreTrainedTokenizer
 
-from dataset_template import Dataset
+from data.dataset_template import Dataset
 from prompt_templates.decanlp_templates import DecaNLPTemplate
 
 
@@ -61,7 +61,7 @@ class DecaNlpDataset(Dataset):
     
     def __init__(self, args, tokenizer: PreTrainedTokenizer):
 
-        super.__init__(self, args, tokenizer)
+        super().__init__(args, tokenizer)
 
         # prompt templates
         self.prompt_template = DecaNLPTemplate(args)

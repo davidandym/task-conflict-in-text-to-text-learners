@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 
-from datasets import DATASET
+from data import DATASET_MAP
 
 
 
@@ -24,15 +24,10 @@ def get_task_type(benchmark, task):
 
 
 def set_seed(args, rank=None):
-    if rank is None and len(args.devices) > 0:
-        ordinal = args.devices[0]
-    else:
-        ordinal = args.devices[rank] 
-    device = torch.device(f'cuda:{ordinal}' if ordinal > -1 else 'cpu')
-    print(f'device: {device}')
+    device = torch.device('cuda:0')
     np.random.seed(args.seed)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
-    with torch.cuda.device(ordinal):
+    with torch.cuda.device('cuda:0'):
         torch.cuda.manual_seed(args.seed)
     return device

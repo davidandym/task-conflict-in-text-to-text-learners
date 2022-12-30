@@ -6,7 +6,7 @@ import random
 
 from promptsource.templates import DatasetTemplates
 
-from template import PromptTemplate
+from prompt_templates.template import PromptTemplate
 
 
 
@@ -17,7 +17,7 @@ canonical_templates = {
     'mrpc': '{} {}',
     'qnli': '{} {}',
     'qqp':  '{} {}',
-    'sst':  '{}',
+    'sst2':  '{}',
     'stsb': '{} {}'
 }
 
@@ -29,7 +29,7 @@ default_templates = {
     'mrpc': 'mrpc sentence1: {}   sentence2: {}',
     'qnli': 'qnli question: {}   sentence: {}',
     'qqp':  'qqp question1: {}   question2: {}',
-    'sst':  'sst2 sentence: {}',
+    'sst2':  'sst2 sentence: {}',
     'stsb': 'stsb sentence1: {}   sentence2: {}'
 }
 
@@ -41,7 +41,7 @@ multiprompt_templates = {
     'mrpc': 6,
     'qnli': 1,
     'qqp':  2,
-    'sst':  0,
+    'sst2':  0,
     'stsb': 0
 }
 
@@ -72,7 +72,7 @@ default_answer_maps = {
         0: 'not_duplicate',
         1: 'duplicate'
     },
-    'sst': {
+    'sst2': {
         0: 'negative',
         1: 'positive'
     },
@@ -106,7 +106,7 @@ multiprompt_answer_maps = {
         0: 'no',
         1: 'yes'
     },
-    'sst': {
+    'sst2': {
         0: 'negative',
         1: 'positive'
     },
@@ -140,7 +140,7 @@ nonsemantic_no_overlap_answer_maps = {
         0: 'n',
         1: 'm'
     },
-    'sst': {
+    'sst2': {
         0: 'l',
         1: 'k'
     },
@@ -174,7 +174,7 @@ nonsemantic_overlap_answer_maps = {
         0: 'z',
         1: 'y'
     },
-    'sst': {
+    'sst2': {
         0: 'z',
         1: 'y'
     },
@@ -187,13 +187,13 @@ class GlueTemplate(PromptTemplate):
     
     def __init__(self, args):
 
-        super.__init__(self, args)
+        super().__init__(args)
 
     
     def load_prompts(self):
 
         if self.prompt == "canonical":
-            return default_templates
+            return canonical_templates
         if self.prompt == "default":
             return default_templates
         if self.prompt == "multiprompt":
@@ -218,10 +218,7 @@ class GlueTemplate(PromptTemplate):
 
     def encode_prompt(self, task, s1, s2=None, example=None, mode='train'):
 
-        if self.prompt == "default":
-            return super().encode_prompt(task, s1, s2)
-
-        elif self.prompt == "multiprompt":
+        if self.prompt == "multiprompt":
             # If multi-prompt training, then some special cases,
             # e.g. fixed test & dev cases.
 
@@ -242,6 +239,8 @@ class GlueTemplate(PromptTemplate):
                 return None
             else:
                 return result[0]
+
+        return super().encode_prompt(task, s1, s2)
 
 
     def encode_label(self, task, label, example=None, mode='train'):

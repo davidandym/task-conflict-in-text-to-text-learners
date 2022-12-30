@@ -5,7 +5,6 @@
 
 from subprocess import Popen, PIPE, CalledProcessError
 import json
-from text.torchtext.datasets.generic import Query
 import logging
 import os
 import re
@@ -17,6 +16,8 @@ from contextlib import closing
 
 from pyrouge import Rouge155
 from sacrebleu import corpus_bleu
+
+from data.decanlp_dataset import Query
 
 
 

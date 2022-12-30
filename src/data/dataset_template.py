@@ -54,7 +54,7 @@ class Dataset():
         return train_set[idcs]
 
 
-    def batch_to_inputs(self, batch, task, canonical):
+    def batch_to_inputs(self, batch, task):
         # Convert batched inputs from dataset to input dict for torch model.
 
         inputs = {}
@@ -119,3 +119,4 @@ class Dataset():
             failures.append('max seq len')
 
         return (consistency, failures)
+

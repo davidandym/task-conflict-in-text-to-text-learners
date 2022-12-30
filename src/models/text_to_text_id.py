@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from transformers import T5ForConditionalGeneration
 from transformers.models.t5.modeling_t5 import T5Stack
 
-from canonical_heads import SequenceOutputHead
+from models.canonical_heads import SequenceOutputHead
 
 
 

@@ -3,7 +3,7 @@
 
 
 
-from template import PromptTemplate
+from prompt_templates.template import PromptTemplate
 
 
 
@@ -57,7 +57,7 @@ class DecaNLPTemplate(PromptTemplate):
 
     def __init__(self, args):
 
-        super.__init__(self, args)
+        super().__init__(args)
 
 
     def load_prompts(self):

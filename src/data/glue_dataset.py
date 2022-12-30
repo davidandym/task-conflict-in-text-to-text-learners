@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset
 from transformers import PreTrainedTokenizer
 from datasets import load_dataset
 
-from dataset_template import Dataset
+from data.dataset_template import Dataset
 from prompt_templates.glue_templates import GlueTemplate
 
 
@@ -52,10 +52,9 @@ class GlueDataset(Dataset):
 
     def __init__(self, args, tokenizer: PreTrainedTokenizer):
 
-        super.__init__(self, args, tokenizer)
-
-        # prompt templates
         self.prompt_template = GlueTemplate(args)
+
+        super().__init__(args, tokenizer)
 
         # extra eval dataset
         self.dataset["mnli_mismatched"]['test'] = self.load_data("mnli_mismatched", tokenizer, mode='test')
@@ -64,20 +63,25 @@ class GlueDataset(Dataset):
 
     def load_data(self, task, tokenizer, mode='dev'):
 
-        if task == 'mnli' and mode != 'train':
-            mode += '_matched'
+        mode_str = 'validation' if mode == 'test' else 'train'
+        if task == 'mnli' and mode == 'test':
+            mode_str += '_matched'
 
-        hf_dataset = load_dataset('glue', task, split=mode, cache_dir=self.raw_data_dir)
+        hf_dataset = load_dataset('glue', task, split=mode_str, cache_dir=self.raw_data_dir)
 
-        dev_split = int(len(hf_dataset) * 0.95)
         if mode == "dev":
-            hf_dataset = hf_dataset[dev_split:]
+            dev_split = int(len(hf_dataset) * 0.95)
+            idcs = (dev_split, len(hf_dataset))
         if mode == "train":
-            hf_dataset = hf_dataset[:dev_split]
+            dev_split = int(len(hf_dataset) * 0.95)
+            idcs = (0, dev_split)
+        if mode == 'test':
+            idcs = (0, len(hf_dataset))
 
         features = []
         count = 0
-        for example in hf_dataset:
+        for idx in range(*idcs):
+            example = hf_dataset[idx]
             fields = self.gather_fields(task, example, mode)
 
             if fields is None:
@@ -114,9 +118,8 @@ class GlueDataset(Dataset):
 
                 ds_fields['label'] = label_encoded['input_ids']
 
-
             if count < self.display_count:
-                self.display_example(count, task, mode, fields, tokenizer, s_encoded, label_encoded)
+                self.display_example(count, task, mode, fields, tokenizer, s_encoded)
 
             features.append(ds_fields)
             count += 1

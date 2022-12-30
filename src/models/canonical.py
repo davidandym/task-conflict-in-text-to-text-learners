@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from pytorch_wrapper.functional import masked_mean_pooling
 from transformers import T5ForConditionalGeneration
 
-from canonical_heads import *
+from models.canonical_heads import *
 
 
 
@@ -49,6 +49,10 @@ class CanonicalEncoder(nn.Module):
     ):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+
+        print(input_ids.shape)
+        print(attention_mask.shape)
+
         encoder_outputs = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -85,7 +89,7 @@ class CanonicalT5(nn.Module):
         self.shared.load_state_dict(pretrained_copy.shared.state_dict())
 
         # Copy pre-trained encoder.
-        self.encoder = CanonicalEncoder(args, config, pretrained_copy.encoder, self.shared)
+        self.encoder = CanonicalEncoder(config, pretrained_copy.encoder, self.shared)
 
         # Initialize Task-Specific Heads
         module_dict = {}

@@ -14,8 +14,8 @@ class PromptTemplate():
         self.prompt = args.prompt_style
         self.labels = args.label_style
         
-        self.prompt_templates = self.load_prompts(args)
-        self.label_templates = self.load_labels(args)
+        self.prompt_templates = self.load_prompts()
+        self.label_templates = self.load_labels()
 
 
     def load_prompts(self):
@@ -33,9 +33,9 @@ class PromptTemplate():
     def encode_prompt(self, task, s1, s2=None):
 
         if s2 is None:
-            return self.prompt_templates.format(s1)
+            return self.prompt_templates[task].format(s1)
         else:
-            return self.prompt_templates.format(s1, s2)
+            return self.prompt_templates[task].format(s1, s2)
 
 
     def encode_label(self, task, label):
