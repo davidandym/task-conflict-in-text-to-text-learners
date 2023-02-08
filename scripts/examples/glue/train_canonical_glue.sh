@@ -5,16 +5,17 @@ python src/train.py \
     --canonical \
     --prompt_style "canonical" \
     --raw_data_dir "/exp/dmueller/data/glue" \
+    --cached_dataset_path "/exp/dmueller/task-specification/camera-ready-tests/.cache/canonical-glue-test.torch" \
     --log_dir "/exp/dmueller/task-specification/camera-ready-tests/canonical-glue-test" \
     --benchmark "glue" \
     --train_tasks "all-tasks" \
-    --log_every 25 \
-    --val_every 200 \
-    --measure_conflict_every 200 \
+    --log_every 5 \
+    --val_every 10 \
+    --measure_conflict_every 10 \
     --measure_conflict_on_cpu \
     --dropout_rate 0.0 \
     --grad_accum "sum" \
-    --warmup_steps 2000 \
+    --warmup_steps 10 \
     --train_batch_size 16 \
     --lr "5e-4" \
-    --max_steps 20000
+    --max_steps 21

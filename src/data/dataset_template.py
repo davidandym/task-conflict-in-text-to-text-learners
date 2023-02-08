@@ -20,6 +20,7 @@ class Dataset():
     
         self.tokenizer_type = args.pretrained_model
         
+        self.benchmark = args.benchmark
         self.prompt_style = args.prompt_style
         self.label_style = args.label_style
         self.canonical = args.canonical

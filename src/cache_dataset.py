@@ -18,7 +18,7 @@ def get_args():
     # IO Parameters
     p.add_argument("--cached_dataset_path", default="/exp/dmueller/data/glue/.cached_t5_project_dataset.torch",
                    help="location of pre-trained dataset")
-    p.add_argument("--data_dir", default="/exp/dmueller/data/glue/.cached_t5_project_dataset.torch",
+    p.add_argument("--raw_data_dir", default="/exp/dmueller/data/glue/.cached_t5_project_dataset.torch",
                    help="Location of raw datafiles. (Can be left blank for GLUE to use default huggingface cache directory)")
 
     # Core Experiment Parameters
@@ -30,7 +30,7 @@ def get_args():
                     help="set if using a canonical model and output spaces.")
     p.add_argument('--text-to-text', dest='canonical', action='store_false',
                     help="set if using a text-to-text model and output spaces.")
-    p.add_argument('--prompted_style', default='canonical', type=str,
+    p.add_argument('--prompt_style', default='canonical', type=str,
                     help="The style of prompts to use for the model. Applies to canonical & text-to-text experiments.")
     p.add_argument('--label_style', default='default', type=str,
                     help="The style of label to use for the model. Only applies to text-to-text experiments.")
@@ -48,11 +48,14 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
 
+    if args.train_tasks[0] == "all-tasks":
+        args.train_tasks = DATASET_MAP[args.benchmark].all_tasks
+
     print("Loading Tokenizer")
-    t5_tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model)
+    tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model)
 
     print("Loading Dataset")
-    dataset = DATASET_MAP[args.benchmark](args)
+    dataset = DATASET_MAP[args.benchmark](args, tokenizer)
 
-    print(f"Done Loading Dataset, Saving at {args.cache_dataset_path}")
-    torch.save(dataset, args.cache_dataset_location)
+    print(f"Done Loading Dataset, Saving at {args.cached_dataset_path}")
+    torch.save(dataset, args.cached_dataset_path)

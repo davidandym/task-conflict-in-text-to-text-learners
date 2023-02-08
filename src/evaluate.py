@@ -36,15 +36,43 @@ def evaluate(args, device, task, model, dataset, tokenizer, task_head=None, test
         batch = tuple(t.to(device) for t in batch)
 
         with torch.no_grad():
-            inputs = dataset.batch_to_inputs(batch, task, args.canonical, args.prompted_inputs)
+            inputs = dataset.batch_to_inputs(batch, task)
             outputs = model(task_head, tokenizer, **inputs)
 
+        task_str = 'mnli' if 'mnli' in task else task
         if args.canonical:
-            predictions = get_canonical_predictions(args.benchmark, task, outputs.logits, inputs)
-            targets = get_canonical_targets(args.benchmark, task, inputs, tokenizer)
+            predictions = get_canonical_predictions(
+                benchmark=args.benchmark,
+                task=task_str,
+                batch=inputs,
+                outputs=outputs,
+                tokenizer=tokenizer
+            )
+            targets = get_canonical_targets(
+                dataset=dataset,
+                benchmark=args.benchmark,
+                task=task_str, 
+                batch=inputs,
+                tokenizer=tokenizer,
+                mode='test' if test else 'dev'
+            )
         else:
-            predictions = get_t2t_predictions(args.benchmark, task, outputs.logits, inputs)
-            targets = get_t2t_targets(args.benchmark, task, inputs, tokenizer)
+            predictions = get_t2t_predictions(
+                dataset=dataset,
+                benchmark=args.benchmark,
+                task=task_str, 
+                batch=inputs,
+                outputs=outputs,
+                tokenizer=tokenizer
+            )
+            targets = get_t2t_targets(
+                dataset=dataset,
+                benchmark=args.benchmark,
+                task=task_str,
+                batch=inputs,
+                tokenizer=tokenizer,
+                mode='test' if test else 'dev'
+            )
 
         avg_total_loss += float(outputs.loss)
         num_steps += 1
@@ -72,7 +100,7 @@ def evaluate(args, device, task, model, dataset, tokenizer, task_head=None, test
         # For DecaNLP, I copied the evaluation metrics from the original MQAN model.
         # https://github.com/salesforce/decaNLP/blob/master/metrics.py
 
-        metrics = compute_metrics(all_predictions, all_targets,
+        metrics, _ = compute_metrics(all_predictions, all_targets,
             bleu='iwslt' in task or 'multi30k' in task, dialogue='woz' in task,
             rouge='cnn' in task, logical_form='sql' in task, corpus_f1='zre' in task)
     else:
@@ -84,7 +112,7 @@ def evaluate(args, device, task, model, dataset, tokenizer, task_head=None, test
 
 
 
-def get_t2t_predictions(benchmark, dataset, task, batch, outputs, tokenizer):
+def get_t2t_predictions(*, dataset, benchmark, task, batch, outputs, tokenizer):
     
     task_type = get_task_type(benchmark, task)
 
@@ -95,7 +123,7 @@ def get_t2t_predictions(benchmark, dataset, task, batch, outputs, tokenizer):
     if task_type.classification:
 
         decoded_predictions = []
-        rev_idx = {v: k for k, v in dataset.prompt_template.label_templates.items()}
+        rev_idx = {v: k for k, v in dataset.prompt_template.label_templates[task].items()}
         
         for pred in predictions:
             if pred not in rev_idx:
@@ -114,7 +142,7 @@ def get_t2t_predictions(benchmark, dataset, task, batch, outputs, tokenizer):
             except ValueError:
                 # I'm not certain that -1 is a great value, but it's what the original
                 # T5 paper used for bad parses for STS-B, so I adopted it.
-                # Certainly for any regression task with negative values this won't work.
+                # Certainly for any regression task with naturally negative values this won't work.
                 decoded_predictions.append(-1.)
         return decoded_predictions
 
@@ -123,7 +151,7 @@ def get_t2t_predictions(benchmark, dataset, task, batch, outputs, tokenizer):
 
 
 
-def get_canonical_predictions(benchmark, task, batch, outputs, tokenizer):
+def get_canonical_predictions(*, benchmark, task, batch, outputs, tokenizer):
     
     task_type = get_task_type(benchmark, task)
 
@@ -174,7 +202,7 @@ def get_canonical_predictions(benchmark, task, batch, outputs, tokenizer):
 
 
 
-def get_t2t_targets(benchmark, dataset, task, batch, tokenizer, mode):
+def get_t2t_targets(*, dataset, benchmark, task, batch, tokenizer, mode):
     
     task_type = get_task_type(benchmark, task)
 
@@ -189,18 +217,19 @@ def get_t2t_targets(benchmark, dataset, task, batch, tokenizer, mode):
                 targets.append(dataset.text_wikisql_answer[idx])
         return targets
 
-    targets = tokenizer.batch_decode(batch['labels'].cpu())
+    targets = batch['labels'].cpu()
+    targets[targets == -100] = tokenizer.pad_token_id # Targets are swapped to -100 in model class to block loss
+    targets = tokenizer.batch_decode(targets)
     targets = [sent.split('</s>')[0] for sent in targets]
 
     if task_type.classification:
         # If the task is classification we need to convert the decoded labels
         # into their canonical form.
 
-        if task == 'mnli_mismatched':
-            task = 'mnli'
-
         decoded_targets = []
-        rev_idx = {v: k for k, v in dataset.prompt_template.label_templates.items()}
+        rev_idx = {v: k for k, v in dataset.prompt_template.label_templates[task].items()}
+        if task == 'multinli':
+            rev_idx = dataset.prompt_template.label_templates[task]
         
         for target in targets:
             decoded_targets.append(rev_idx[target])
@@ -222,7 +251,7 @@ def get_t2t_targets(benchmark, dataset, task, batch, tokenizer, mode):
 
 
 
-def get_canonical_targets(benchmark, dataset, task, batch, tokenizer, mode):
+def get_canonical_targets(*, dataset, benchmark, task, batch, tokenizer, mode):
     
     task_type = get_task_type(benchmark, task)
 
@@ -233,7 +262,7 @@ def get_canonical_targets(benchmark, dataset, task, batch, tokenizer, mode):
         for idx in batch['wiki_id'].cpu().int().tolist():
             if mode == 'dev':
                 targets.append(dataset.dev_wikisql_answer[idx])
-            elif mode == 'text':
+            elif mode == 'test':
                 targets.append(dataset.text_wikisql_answer[idx])
         return targets
 
@@ -244,7 +273,7 @@ def get_canonical_targets(benchmark, dataset, task, batch, tokenizer, mode):
         labels = batch['labels'].cpu()
         return list(labels.cpu().numpy())
 
-    if task_type.span:
+    if task_type.span or task_type.span_noa:
         # Span labeling requires pulling out the gold span from
         # the input sequence.
 
@@ -268,7 +297,7 @@ def get_canonical_targets(benchmark, dataset, task, batch, tokenizer, mode):
 
     if task_type.seq2seq:
 
-        labels = inputs['labels'].cpu()
+        labels = batch['labels'].cpu()
         labels[labels == -100] = tokenizer.pad_token_id
         targets = tokenizer.batch_decode(labels)
         targets = [sent.split('</s>')[0] for sent in targets]

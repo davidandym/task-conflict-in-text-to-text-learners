@@ -31,7 +31,7 @@ def get_args():
     # IO Parameters
     p.add_argument("--log_dir", default="experiments/t5/testing",
                    help="output directory")
-    p.add_argument("--cached_dataset_path", default="/exp/dmueller/data/glue/.cached_t5_project_dataset.torch",
+    p.add_argument("--cached_dataset_path", default=None,
                    help="location of pre-trained dataset")
     p.add_argument("--raw_data_dir", default="", type=None,
                    help="Location of raw datafiles. (Can be left None for GLUE to use default huggingface cache directory) or if loading cached dataset.")
@@ -134,7 +134,10 @@ def initialize_csv_logger(args, dataset):
                         'inter-task magnitude conflict']
     train_log_fields += [f'{task} train loss' for task in args.train_tasks]
     for task in args.train_tasks:
-        metrics = dataset.task_metric_keys[task]
+        if args.benchmark == 'decanlp':
+            metrics = dataset.task_metric_keys(task)
+        else:
+            metrics = dataset.task_metric_keys[task]
         train_log_fields += [f'{task} dev {metric}' for metric in metrics]
         train_log_fields += [f'{task} dev total samples']
         train_log_fields += [f'{task} dev loss']
@@ -198,6 +201,7 @@ def train(args, device,
     max_steps = args.max_steps
     iteration = 0
 
+    log().info("Starting training loop now.")
     while True:
         step_log = {'step': iteration}
 
@@ -262,6 +266,7 @@ def train(args, device,
 
         # Log this step.
         if iteration % args.log_every == 0:
+            log().info("Finished step %d, writing to logs.", iteration)
             train_logger.writerow(step_log)
             train_log_file.flush()
 
@@ -300,8 +305,6 @@ def run(args, device, model, dataset, tokenizer):
 
     logger = initialize_logger(args)
     logger.start = time.time()
-
-    logger.info(f'Preparing iterators')
 
     opt, lr_scheduler = init_opt(args, model)
 
@@ -375,7 +378,7 @@ def main():
     tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model)
 
     # Because dataset loading takes so long, I recommend cacheing it first.
-    if args.cached_dataset_path != "":
+    if args.cached_dataset_path == None:
         dataset = DATASET_MAP[args.benchmark](args, tokenizer)
     else:
         dataset = torch.load(args.cached_dataset_path)

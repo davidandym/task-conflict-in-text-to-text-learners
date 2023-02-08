@@ -61,10 +61,10 @@ class DecaNlpDataset(Dataset):
     
     def __init__(self, args, tokenizer: PreTrainedTokenizer):
 
-        super().__init__(args, tokenizer)
-
         # prompt templates
         self.prompt_template = DecaNLPTemplate(args)
+
+        super().__init__(args, tokenizer)
 
     
     def load_data(self, task, tokenizer, mode='dev'):
@@ -98,57 +98,33 @@ class DecaNlpDataset(Dataset):
         return train_set[idcs]
 
 
-    def batch_to_inputs(self, batch, task, canonical, prompted):
+    def batch_to_inputs(self, batch, task):
 
-        fields = {}
-
+        inputs = {}
+        inputs["input_ids"] = batch[0]
+        inputs["attention_mask"] = batch[1]
         if task == 'wikisql':
-            fields['wiki_id'] = batch[8]
+            inputs['wiki_id'] = batch[3]
+        if self.text_to_text:
+            inputs["labels"] = batch[2]
+            return inputs
 
-        if not canonical:
-            if prompted:
-                return {**fields,
-                    "input_ids": batch[2],
-                    "attention_mask": batch[3],
-                    "labels": batch[4],
-                    "labels_mask": batch[5]
-                }
-            else:
-                return {**fields,
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                    "labels": batch[4],
-                    "labels_mask": batch[5]
-                }
+        # Otherwise, canonical outputs.
+        inputs['labels'] = None
+        inputs['labels_mask'] = None
+        inputs['labels_span_start'] = None
+        inputs['labels_span_end'] = None
+        if self.canonical_output_space[task] == 'class':
+            inputs['labels'] = batch[2]
+        elif self.canonical_output_space[task] == 'text':
+            inputs['labels'] = batch[2]
+        elif self.canonical_output_space[task] == 'span':
+            inputs['labels_span_start'] = batch[2]
+            inputs['labels_span_end'] = batch[3]
         else:
-            if prompted:
-                fields = {**fields,
-                    "input_ids": batch[2],
-                    "attention_mask": batch[3],
-                }
-            else:
-                fields = {**fields,
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                }
+            raise Exception("unidentified output space")
 
-    
-            fields['labels'] = None
-            fields['labels_mask'] = None
-            fields['labels_span_start'] = None
-            fields['labels_span_end'] = None
-            if self.canonical_output_space[task] == 'class':
-                fields['labels'] = batch[6]
-            elif self.canonical_output_space[task] == 'text':
-                fields['labels'] = batch[6]
-                fields['labels_mask'] = batch[7]
-            elif self.canonical_output_space[task] == 'span':
-                fields['labels_span_start'] = batch[6]
-                fields['labels_span_end'] = batch[7]
-            else:
-                raise Exception("unidentified output space")
-
-            return fields
+        return inputs
 
 
    # Really gross processing and loading code below!!
@@ -157,7 +133,6 @@ class DecaNlpDataset(Dataset):
     def load_sst(self, tokenizer, mode):
 
         features = []
-        count = 0
 
         path = os.path.join(self.raw_data_dir, 'sst', '{}_binary_sent.csv'.format(mode))
         with io.open(os.path.expanduser(path), encoding='utf8') as f:
@@ -171,7 +146,7 @@ class DecaNlpDataset(Dataset):
 
                 # text-to-text
                 input = self.prompt_template.encode_prompt('sst', context)
-                text_label = self.prompt_template.encode_label(label)
+                text_label = self.prompt_template.encode_label('sst', label)
 
                 fields = self.encode(
                     tokenizer=tokenizer,
@@ -182,17 +157,7 @@ class DecaNlpDataset(Dataset):
                 if self.canonical:
                     fields['label'] = label
 
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        'sst',
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
-
                 features.append(fields)
-                count += 1
 
         return self.convert_features_to_tensor_dataset(features,
                                                        can_label_class=self.canonical)
@@ -212,7 +177,6 @@ class DecaNlpDataset(Dataset):
         src_path = os.path.join(self.raw_data_dir, 'iwslt', 'en-de', src_fname)
         tgt_path = os.path.join(self.raw_data_dir, 'iwslt', 'en-de', tgt_fname)
 
-        count = 0
         features = []
         with open(src_path) as src_file, open(tgt_path) as tgt_file:
             for src_line, tgt_line in zip(src_file, tgt_file):
@@ -228,17 +192,7 @@ class DecaNlpDataset(Dataset):
                         label=label
                     )
 
-                    if count < self.display_count:
-                        self.display_example(
-                            count,
-                            'iwslt',
-                            mode,
-                            fields,
-                            tokenizer,
-                            input)
-
                     features.append(fields)
-                    count += 1
 
         return self.convert_features_to_tensor_dataset(features, can_label_text=self.canonical)
 
@@ -284,8 +238,6 @@ class DecaNlpDataset(Dataset):
             split = int(len(all_squad) * 0.95)
             all_squad = all_squad[split:]
 
-        count = 0
-        total_skipped = 0
         features = []
 
         for squad in all_squad:
@@ -301,33 +253,19 @@ class DecaNlpDataset(Dataset):
             fields = self.encode(
                 tokenizer=tokenizer,
                 input=input,
-                t2t_label=t2t_label if self.text_to_text else None
+                label=t2t_label if self.text_to_text else None
             )
 
             if self.canonical:
                 can_label = self.generate_span_labels(tokenizer, context_question, answer)
                 if can_label == (-1, -1):
-                    total_skipped += 1
                     continue
                 if can_label[0] >= self.max_seq_len - 1 or can_label[1] >= self.max_seq_len - 1:
                     continue
                 fields['label'] = can_label
 
-            
-            if count < self.display_count:
-                self.display_example(
-                    count,
-                    'squad',
-                    mode,
-                    fields,
-                    tokenizer,
-                    input)
-
-            count += 1
             features.append(fields)
-    
-        print(f"{total_skipped} SQUAD examples skipped due to tokenizer punctuation")
-        print(f"{count} left over.")
+
         return self.convert_features_to_tensor_dataset(features, can_label_spans=self.canonical)
 
 
@@ -348,7 +286,6 @@ class DecaNlpDataset(Dataset):
         path = os.path.join(self.raw_data_dir, dataset, dataset, f'{mode}.jsonl')
        
         features = []
-        count = 0
 
         with open(path) as f:
             lines = f.readlines()
@@ -365,17 +302,7 @@ class DecaNlpDataset(Dataset):
                     label=label
                 )
 
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        dataset,
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
-
                 features.append(fields)
-                count += 1
 
         return features
 
@@ -412,37 +339,26 @@ class DecaNlpDataset(Dataset):
             split = int(len(all_nli) * 0.95)
             all_nli = all_nli[split:]
 
-        count = 0
         features = []
 
         for nli in all_nli:
             context, hypothesis, answer = nli
 
             t2t_label = answer
-            can_label = self.prompt_template.encode_label(t2t_label)
+            can_label = self.prompt_template.encode_label('multinli', t2t_label)
 
             input = self.prompt_template.encode_prompt('multinli', context, hypothesis)
 
             fields = self.encode(
                 tokenizer=tokenizer,
                 input=input,
-                tlabel=t2t_label if self.text_to_text else None
+                label=t2t_label if self.text_to_text else None
             )
 
             if self.canonical:
                 fields['label'] = can_label
 
-            if count < self.display_count:
-                self.display_example(
-                    count,
-                    'multinli',
-                    mode,
-                    fields,
-                    tokenizer,
-                    input)
-
             features.append(fields)
-            count += 1
 
         return self.convert_features_to_tensor_dataset(features,
                                                        can_label_class=self.canonical)
@@ -452,8 +368,6 @@ class DecaNlpDataset(Dataset):
         path = os.path.join(self.raw_data_dir, 'srl', f'{mode}.jsonl')
 
         features = []
-        count = 0
-        total_skipped = 0
 
         with open(path) as f:
             lines = f.readlines()
@@ -477,34 +391,19 @@ class DecaNlpDataset(Dataset):
                     # pulling out spans
                     can_label = self.generate_span_labels(tokenizer, context, answer)
                     if can_label == (-1, -1):
-                        total_skipped += 1
                         continue
                     if can_label[0] > self.max_seq_len or can_label[1] > self.max_seq_len:
                         continue
-                    fields['canonical_label'] = can_label
-                
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        'srl',
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
+                    fields['label'] = can_label
 
-                count += 1
                 features.append(fields)
-    
-        print(f"{total_skipped} SRL examples skipped due to tokenizer punctuation")
-        print(f"{count} left over.")
+
         return self.convert_features_to_tensor_dataset(features, can_label_spans=self.canonical)
 
 
     def load_zre(self, tokenizer, mode):
         path = os.path.join(self.raw_data_dir, 'zre', 'relation_splits', f'{mode}.jsonl')
         features = []
-        count = 0
-        total_skipped = 0
 
         with open(path) as f:
             lines = f.readlines()
@@ -533,26 +432,13 @@ class DecaNlpDataset(Dataset):
                     else:
                         can_label = self.generate_span_labels(tokenizer, context, answer)
                         if can_label == (-1, -1):
-                            total_skipped += 1
                             continue
                         if can_label[0] > self.max_seq_len or can_label[1] > self.max_seq_len:
                             continue
                     fields['label'] = can_label
                 
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        'zre',
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
-
-                count += 1
                 features.append(fields)
     
-        print(f"{total_skipped} ZRE examples skipped due to tokenizer punctuation")
-        print(f"{count} left over.")
         return self.convert_features_to_tensor_dataset(features, can_label_spans=self.canonical)
 
 
@@ -561,8 +447,6 @@ class DecaNlpDataset(Dataset):
             mode = 'validation'
         path = os.path.join(self.raw_data_dir, 'schema', f'{mode}.jsonl')
         features = []
-        count = 0
-        total_skipped = 0
 
         with open(path) as f:
             lines = f.readlines()
@@ -587,26 +471,13 @@ class DecaNlpDataset(Dataset):
 
                     can_label = self.generate_span_labels(tokenizer, context, answer)
                     if can_label == (-1, -1):
-                        total_skipped += 1
                         continue
                     if can_label[0] > self.max_seq_len or can_label[1] > self.max_seq_len:
                         continue
                     fields['label'] = can_label
                 
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        'schema',
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
-
-                count += 1
                 features.append(fields)
-    
-        print(f"{total_skipped} Schema examples skipped due to tokenizer punctuation")
-        print(f"{count} left over.")
+
         return self.convert_features_to_tensor_dataset(features, can_label_spans=self.canonical)
 
 
@@ -644,15 +515,6 @@ class DecaNlpDataset(Dataset):
                 )
                 fields['wikisql_id'] = count
 
-                if count < self.display_count:
-                    self.display_example(
-                        count,
-                        'wikisql',
-                        mode,
-                        fields,
-                        tokenizer,
-                        input)
-
                 features.append(fields)
                 count += 1
 
@@ -678,8 +540,8 @@ class DecaNlpDataset(Dataset):
         # handled by the `batch_to_inputs` function.
         # The 3 `can_label` arguments determine which type of canonical form to convert to.
 
-        all_inputs = torch.tensor([f['can_inputs'] for f in features], dtype=torch.long)
-        all_masks = torch.tensor([f['can_input_mask'] for f in features], dtype=torch.long)
+        all_inputs = torch.tensor([f['inputs'] for f in features], dtype=torch.long)
+        all_masks = torch.tensor([f['input_mask'] for f in features], dtype=torch.long)
 
         if self.text_to_text or can_label_text or can_label_class:
             # If we are in a text-to-text setting, or the canonical label is text (seq2seq) or classification

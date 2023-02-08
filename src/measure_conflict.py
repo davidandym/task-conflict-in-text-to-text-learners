@@ -196,8 +196,7 @@ def compute_big_batch_gradient(args,
 
         batch = tuple([b[i*small_batch_size:i*small_batch_size+small_batch_size] for b in big_batch])
         batch = tuple(t.to(device) for t in batch)
-        inputs = dataset.batch_to_inputs(batch, task, args.canonical,
-                                         args.prompted_inputs)
+        inputs = dataset.batch_to_inputs(batch, task)
         out = model(task, tokenizer, **inputs)
                     # input_ids=inputs['input_ids'],
                     # attention_mask=inputs['attention_mask'],

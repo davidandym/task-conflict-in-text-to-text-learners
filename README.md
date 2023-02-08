@@ -1,8 +1,7 @@
 The official code repository for the EMNLP 2022 findings paper:
 
-## "Do Text-to-Text Learners Suffer From Multi-Task Conflict?"
+## ["Do Text-to-Text Learners Suffer From Multi-Task Conflict?"](https://aclanthology.org/2022.findings-emnlp.206/)
 
-Note: The code has been refactored, but not debugged. I will remove this note when I have tested and debugged the refactor.
 
 ## Synopsis
 
@@ -34,6 +33,7 @@ Instead, the results of each experiment are saved in two files: `{args.log_dir}/
 `evaluation.json` will contain the final model performance on test and validation sets for all the tasks being considered.
 
 To run the experiments from the paper, see `scripts/main_experiments/`.
+In the paper, these experiments were repeated over multiple random seeds.
 
 ## Measuring Conflict
 
@@ -45,7 +45,7 @@ The code which measures conflict across tasks can be found in `src/conflict_meas
 4. The variance across the large batch gradients of each task is used to compute magnitude conflict.
 5. Finally, the variance across inter-task gradient covariance is used to compute "noise conflict", a notion which may be expanded upon in future work (see https://openreview.net/forum?id=H9UOWMR_Ut).
 
-The returned measurements of directional and magnitude conflict are used in the paper.
+The returned measurements of directional and magnitude conflict are used in the paper Figures 2, 3 and 4.
 
 ## Data
 
@@ -79,16 +79,20 @@ A similar issue arises in the output space: only 2 tasks are classification task
 
 ## Citation
 
-If you use this code, please cite: (The proper Bibtex should be forthcoming...)
+If you use this code, please cite:
 ```
-@misc{https://doi.org/10.48550/arxiv.2212.06645,
-  doi = {10.48550/ARXIV.2212.06645},
-  url = {https://arxiv.org/abs/2212.06645},
-  author = {Mueller, David and Andrews, Nicholas and Dredze, Mark},
-  keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  title = {Do Text-to-Text Multi-Task Learners Suffer from Task Conflict?},
-  publisher = {arXiv},
-  year = {2022},
-  copyright = {Creative Commons Attribution 4.0 International}
+@inproceedings{mueller-etal-2022-text,
+    title = "Do Text-to-Text Multi-Task Learners Suffer from Task Conflict?",
+    author = "Mueller, David  and
+      Andrews, Nicholas  and
+      Dredze, Mark",
+    booktitle = "Findings of the Association for Computational Linguistics: EMNLP 2022",
+    month = dec,
+    year = "2022",
+    address = "Abu Dhabi, United Arab Emirates",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.findings-emnlp.206",
+    pages = "2843--2858",
+    abstract = "Traditional multi-task learning architectures learn a single model across multiple tasks through a shared encoder followed by task-specific decoders. Learning these models often requires specialized training algorithms that address task-conflict in the shared parameter updates, which otherwise can lead to negative transfer. A new type of multi-task learning within NLP homogenizes multi-task architectures as a shared encoder and language model decoder, which does surprisingly well across a range of diverse tasks. Does this new architecture suffer from task-conflicts that require specialized training algorithms? We study how certain factors in the shift towards text-to-text models affects multi-task conflict and negative transfer, finding that both directional conflict and transfer are surprisingly constant across architectures.",
 }
 ```

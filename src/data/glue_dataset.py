@@ -179,7 +179,13 @@ class GlueDataset(Dataset):
         else:
             raise Exception("Unknown task in data gathering")
 
-        prompted_inputs = self.prompt_template.encode_prompt(task, s1, s2, example, mode)
+        prompted_inputs = self.prompt_template.encode_prompt(
+            'mnli' if 'mnli' in task else task,
+            s1,
+            s2,
+            example,
+            mode
+        )
         if prompted_inputs is None:
             return None
 
@@ -190,7 +196,12 @@ class GlueDataset(Dataset):
             }
 
 
-        text_outputs = self.prompt_template.encode_label(task, label, example, mode)
+        text_outputs = self.prompt_template.encode_label(
+            'mnli' if 'mnli' in task else task,
+            label,
+            example,
+            mode
+        )
         return {
             'sentence': prompted_inputs,
             'label': text_outputs
